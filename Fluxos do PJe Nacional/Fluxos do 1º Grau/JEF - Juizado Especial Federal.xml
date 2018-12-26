@@ -1,0 +1,732 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<process-definition xmlns="urn:jbpm.org:jpdl-3.2" name="Juizado Especial Federal">
+    <description><![CDATA[.]]></description>  
+    <!-- SWIMLANES -->
+    <swimlane name="Secretaria e Gabinete">
+        <assignment pooled-actors="#{localizacaoAssignment.getPooledActors('10:1338,9:1469')}"/>
+    </swimlane>  
+    <!-- START-STATE -->
+    <start-state name="Início">
+        <task name="Tarefa inicial" priority="3"/>
+        <transition to="Assunto perícia ou audiência?" name="Assunto perícia ou audiência?"/>
+    </start-state>  
+    <!-- NODES -->
+    <decision expression="#{tramitacaoProcessualService.temAssuntoDoGrupo('PER') ? 'Análise inicial - Perícia' : (tramitacaoProcessualService.temAssuntoDoGrupo('AUD') ? 'Análise inicial - Audiência' : 'Análise inicial')}" name="Assunto perícia ou audiência?">
+        <transition to="[JEF] Análise inicial - Audiência" name="Análise inicial - Audiência"/>
+        <transition to="[JEF] Análise inicial" name="Análise inicial"/>
+        <transition to="[JEF] Análise inicial - Perícia" name="Análise inicial - Perícia"/>
+    </decision>
+    <task-node end-tasks="true" name="[JEF] Análise inicial - Perícia">
+        <task name="[JEF] Análise inicial - Perícia" swimlane="Secretaria e Gabinete" priority="4">
+            <controller>
+                <variable name="Processo_Fluxo_frameAnalisarPericia" mapped-name="frame:Processo_Fluxo_frameAnalisarPericia" access="read,write"/>
+                <variable name="Processo_Fluxo_minutaAnalise" mapped-name="frame:Processo_Fluxo_minutaAnalise" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+                <variable name="designarPericiaLote" mapped-name="designarPericiaLote:designarPericiaLote" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Análise inicial - Audiência" name="Análise inicial - Audiência"/>
+        <transition to="[JEF] Análise inicial" name="Análise inicial"/>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="Emenda ou contestação automática?" name="Emenda ou contestação automática?">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="[JEF] Controlar prazos" name="Controlar prazos"/>
+        <transition to="[JEF] Controlar prazos da emenda" name="Controlar prazos da emenda"/>
+        <transition to="[JEF] Controlar prazos da contestação" name="Controlar prazos da contestação"/>
+        <transition to="[JEF] Designar audiência" name="Designar audiência"/>
+        <transition to="[JEF] Designar perícia" name="Designar perito"/>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="[JEF] Prevenção" name="Prevenção"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para despacho"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para decisão"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão urgente"/>
+        <event type="task-create">
+            <action expression="#{taskInstanceUtil.setVariable('tiposDisponiveisIds','60,65,69,167,170,171,172,188,189,190,191,192,193')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavel('pje:fluxo:jef:tarefaControlarPrazo','Emenda ou contestação automática?')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('pje:fluxo:jef:tarefaDarCienciaPartes','Preparar ato de comunicação')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:opcoesMovimentacao', 'N:Não,C:Citar,E:Emendar')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:tipoModeloMovimentacao', 'C:65-3349,E:60-3350')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:jef:opcaoIntimacaoPolo', 'C:P,E:A')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Análise inicial - Audiência">
+        <task name="[JEF] Análise inicial - Audiência" swimlane="Secretaria e Gabinete" priority="4">
+            <controller>
+                <variable name="Processo_Fluxo_frameAnalisarAudiencia" mapped-name="frame:Processo_Fluxo_frameAnalisarAudiencia" access="read,write"/>
+                <variable name="Processo_Fluxo_minutaAnalise" mapped-name="frame:Processo_Fluxo_minutaAnalise" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+                <variable name="designarAudienciaLote" mapped-name="designarAudienciaLote:designarAudienciaLote" access="read,write"/>
+                <variable name="redesignarAudienciaLote" mapped-name="redesignarAudienciaLote:redesignarAudienciaLote" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Análise inicial - Perícia" name="Análise inicial - Perícia"/>
+        <transition to="[JEF] Análise inicial" name="Análise inicial"/>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="Emenda ou contestação automática?" name="Emenda ou contestação automática?">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="[JEF] Controlar prazos" name="Controlar prazos"/>
+        <transition to="[JEF] Controlar prazos da emenda" name="Controlar prazos da emenda"/>
+        <transition to="[JEF] Controlar prazos da contestação" name="Controlar prazos da contestação"/>
+        <transition to="[JEF] Designar audiência" name="Designar audiência"/>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="[JEF] Prevenção" name="Prevenção"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para despacho"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para decisão"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão urgente"/>
+        <transition to="[JEF] Designar perícia" name="[JEF] Designar perícia"/>
+        <event type="task-create">
+            <action expression="#{taskInstanceUtil.setVariable('tiposDisponiveisIds','60,65,69,167,170,171,172,188,189,190,191,192,193')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavel('pje:fluxo:jef:tarefaControlarPrazo','Emenda ou contestação automática?')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('pje:fluxo:jef:tarefaDarCienciaPartes','Preparar ato de comunicação')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:opcoesMovimentacao', 'N:Não,C:Citar,E:Emendar')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:tipoModeloMovimentacao', 'C:65-3349,E:60-3350')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:jef:opcaoIntimacaoPolo', 'C:P,E:A')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Análise inicial">
+        <task name="[JEF] Análise inicial" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="Processo_Fluxo_minutaAnalise" mapped-name="frame:Processo_Fluxo_minutaAnalise" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Análise inicial - Audiência" name="Análise inicial - Audiência"/>
+        <transition to="[JEF] Análise inicial - Perícia" name="Análise inicial - Perícia"/>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="[JEF] Controlar prazos" name="Controlar prazos"/>
+        <transition to="[JEF] Controlar prazos da emenda" name="Controlar prazos da emenda"/>
+        <transition to="[JEF] Controlar prazos da contestação" name="Controlar prazos da contestação"/>
+        <transition to="[JEF] Designar audiência" name="Designar audiência"/>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Emenda ou contestação automática?" name="Emenda ou contestação automática?">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="[JEF] Prevenção" name="Prevenção"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para despacho"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para decisão"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão urgente"/>
+        <transition to="[JEF] Designar perícia" name="[JEF] Designar perícia"/>
+        <event type="task-create">
+            <action expression="#{taskInstanceUtil.setVariable('tiposDisponiveisIds','60,65,69,167,170,171,172,188,189,190,191,192,193')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavel('pje:fluxo:jef:tarefaControlarPrazo','Emenda ou contestação automática?')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('pje:fluxo:jef:tarefaDarCienciaPartes','Preparar ato de comunicação')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:opcoesMovimentacao', 'N:Não,C:Citar,E:Emendar')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:tipoModeloMovimentacao', 'C:65-3349,E:60-3350')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:jef:opcaoIntimacaoPolo', 'C:P,E:A')}"/>
+        </event>
+    </task-node>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('pje:fluxo:jef:movimentacaoAutomatica') eq 'E' ? 'Controlar prazos da emenda - Automático' : 'Controlar prazos da contestação - Automático'}" name="Emenda ou contestação automática?">
+        <transition to="[JEF] Controlar prazos da emenda - Automático" name="Controlar prazos da emenda - Automático"/>
+        <transition to="[JEF] Controlar prazos da contestação - Automático" name="Controlar prazos da contestação - Automático"/>
+    </decision>
+    <process-state name="[JEF] Designar audiência">
+        <sub-process name="Audiência" binding="late"/>
+        <transition to="Testa saída Designar audiência" name="Testa saída Designar audiência"/>
+    </process-state>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('saidaAudiencia') eq 'sentenca' ? 'Conclusão para julgamento' : (tramitacaoProcessualService.recuperaVariavel('saidaAudiencia') eq 'despacho' ? 'Conclusão para despacho' : (tramitacaoProcessualService.recuperaVariavel('saidaAudiencia') eq 'decisao' ? 'Conclusão para decisão' : (tramitacaoProcessualService.recuperaVariavel('saidaAudiencia') eq 'urgente' ? 'Conclusão urgente' : (tramitacaoProcessualService.recuperaVariavel('saidaAudiencia') eq 'audiencia' ? 'Designar audiência' : (tramitacaoProcessualService.recuperaVariavel('saidaAudiencia') eq 'comunicacao' ? 'Preparar ato de comunicação' : 'Saída de exceção')))))}" name="Testa saída Designar audiência">
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="[JEF] Designar audiência" name="Designar audiência"/>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para despacho"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para decisão"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão urgente"/>
+        <event type="node-leave">
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('saidaAudiencia')}"/>
+        </event>
+    </decision>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('ExpedienteInexistenteSemPrazo') ? 'Expediente sem prazo' : (tramitacaoProcessualService.recuperaVariavel('PrepararOutrasComunicacoes') ? 'Preparar ato de comunicação' : (processoParteExpedienteManager.existeExpedientesAutomaticosComManifestacao(tramitacaoProcessualService.recuperaProcesso(), tramitacaoProcessualService.recuperaVariavel('pje:fluxo:idsParteExpedienteControle')) ? 'Expediente com manifestação' : 'Expediente sem manifestação'))}" name="Testa saída Controlar prazos">
+        <transition to="[JEF] Expediente sem prazo" name="Expediente sem prazo"/>
+        <transition to="[JEF] Expediente sem manifestação" name="Expediente sem manifestação"/>
+        <transition to="[JEF] Expediente com manifestação" name="Expediente com manifestação"/>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <event type="node-leave">
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('PrepararOutrasComunicacoes', false)}"/>
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('ExpedienteInexistenteSemPrazo')}"/>
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('pje:fluxo:idsParteExpedienteControle')}"/>
+        </event>
+    </decision>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('PrepararOutrasComunicacoes') ? 'Preparar ato de comunicação' : (processoParteExpedienteManager.existeExpedientesAutomaticosComManifestacao(tramitacaoProcessualService.recuperaProcesso(), tramitacaoProcessualService.recuperaVariavel('pje:fluxo:idsParteExpedienteControle')) ? 'Expediente da emenda com manifestação' : 'Lançar sentença de extinção')}" name="Testa saída emenda automática">
+        <transition to="[JEF] Expediente da emenda com manifestação" name="Expediente da emenda com manifestação"/>
+        <transition to="Lançar sentença de extinção" name="Lançar sentença de extinção"/>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <event type="node-leave">
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('PrepararOutrasComunicacoes', false)}"/>
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('pje:fluxo:idsParteExpedienteControle')}"/>
+        </event>
+    </decision>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('PrepararOutrasComunicacoes') ? 'Preparar ato de comunicação' : 'Conclusão para julgamento'}" name="Testa saída contestação automática">
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+        <event type="node-leave">
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('PrepararOutrasComunicacoes', false)}"/>
+        </event>
+    </decision>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('PrepararOutrasComunicacoes') ? 'Preparar ato de comunicação' : 'Análise do fim do prazo da emenda'}" name="Testa saída controle da emenda">
+        <transition to="[JEF] Análise do fim do prazo da emenda" name="Análise do fim do prazo da emenda"/>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <event type="node-leave">
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('PrepararOutrasComunicacoes', false)}"/>
+        </event>
+    </decision>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('PrepararOutrasComunicacoes') ? 'Preparar ato de comunicação' : 'Análise do fim do prazo da contestação'}" name="Testa saída - Controle da contestação">
+        <transition to="[JEF] Análise do fim do prazo da contestação" name="Análise do fim do prazo da contestação"/>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <event type="node-leave">
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('PrepararOutrasComunicacoes', false)}"/>
+        </event>
+    </decision>
+    <decision expression="#{processoParteExpedienteManager.existeExpedientesAutomaticosComManifestacao(tramitacaoProcessualService.recuperaProcesso(), tramitacaoProcessualService.recuperaVariavel('pje:fluxo:idsParteExpedienteControle')) ? 'Verificar manifestação recurso' : 'Trânsito em julgado'}" name="Testa saída controle de prazo recurso">
+        <transition to="[JEF] Trânsito em julgado" name="Trânsito em julgado"/>
+        <transition to="Verificar manifestação recurso" name="Verificar manifestação recurso"/>
+    </decision>
+    <decision expression="#{processoParteExpedienteManager.existeExpedientesAutomaticosComManifestacao(tramitacaoProcessualService.recuperaProcesso(), tramitacaoProcessualService.recuperaVariavel('pje:fluxo:idsParteExpedienteControle')) ? (documentoJudicialService.existeManifestacaoTipoDocumento(tramitacaoProcessualService.recuperaProcesso(), tramitacaoProcessualService.recuperaVariavel('pje:fluxo:idsParteExpedienteControle'), 20, true, false, false) ? 'Pendente de envio para Turma Recursal' : 'Expediente de contrarrazões com manifestação') : 'Pendente de envio para Turma Recursal'}" name="testa saída controle contrarrazões">
+        <transition to="[JEF] Expediente de contrarrazões com manifestação" name="Expediente de contrarrazões com manifestação"/>
+        <transition to="[JEF] Pendente de envio para Turma Recursal" name="Pendente de envio para Turma Recursal"/>
+    </decision>
+    <decision expression="#{documentoJudicialService.existeManifestacaoTipoDocumento(tramitacaoProcessualService.recuperaProcesso(), tramitacaoProcessualService.recuperaVariavel('pje:fluxo:idsParteExpedienteControle'), 47, true, true, false) ? 'Intimação - Contrarrazões' : 'Verificar manifestação embargos'}" name="Verificar manifestação recurso">
+        <transition to="Intimação - Contrarrazões" name="Intimação - Contrarrazões"/>
+        <transition to="Verificar manifestação embargos" name="Verificar manifestação embargos"/>
+    </decision>
+    <decision expression="#{documentoJudicialService.existeManifestacaoTipoDocumento(tramitacaoProcessualService.recuperaProcesso(), tramitacaoProcessualService.recuperaVariavel('pje:fluxo:idsParteExpedienteControle'), 23, true, true, false) ? 'Intimação - Embargos' : 'Expediente de recurso com manifestação'}" name="Verificar manifestação embargos">
+        <transition to="[JEF] Expediente de recurso com manifestação" name="Expediente de recurso com manifestação"/>
+        <transition to="Intimação - Embargos" name="Intimação - Embargos"/>
+    </decision>
+    <decision expression="#{intimacaoPartesService.intimarPartesAutomaticamente(tramitacaoProcessualService.recuperaProcesso(), tramitacaoProcessualService.recuperaVariavel('pje:fluxo:tramitacao:idDocumentoManifestacao'), tramitacaoProcessualService.recuperaVariavel('pje:fluxo:tramitacao:poloIntimacao')) ? 'Controlar prazos para contrarrazões' : 'Preparar ato de comunicação'}" name="Intimação - Contrarrazões">
+        <transition to="[JEF] Controlar prazos para contrarrazões " name="Controlar prazos para contrarrazões"/>
+    </decision>
+    <decision expression="#{intimacaoPartesService.intimarPartesAutomaticamente(tramitacaoProcessualService.recuperaProcesso(), tramitacaoProcessualService.recuperaVariavel('pje:fluxo:tramitacao:idDocumentoManifestacao'), tramitacaoProcessualService.recuperaVariavel('pje:fluxo:tramitacao:poloIntimacao')) ? 'Controlar prazos dos embargos de declaração' : 'Preparar ato de comunicação'}" name="Intimação - Embargos">
+        <transition to="[JEF] Controlar prazos dos embargos de declaração" name="Controlar prazos dos embargos de declaração"/>
+    </decision>
+    <task-node end-tasks="true" name="[JEF] Análise do fim do prazo da contestação">
+        <task name="[JEF] Análise do fim do prazo da contestação" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="WEB-INF_xhtml_flx_exped_registroCiencia" mapped-name="frame:WEB-INF_xhtml_flx_exped_registroCiencia" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para despacho"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para decisão"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão urgente"/>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Análise do fim do prazo da emenda">
+        <task name="[JEF] Análise do fim do prazo da emenda" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="WEB-INF_xhtml_flx_exped_registroCiencia" mapped-name="frame:WEB-INF_xhtml_flx_exped_registroCiencia" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para despacho"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para decisão"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão urgente"/>
+        <event type="node-enter">
+            <action expression="#{taskInstanceUtil.setVariable('pje:fluxo:registrociencia:meios','E,C,M,T,S')}"/>
+        </event>
+    </task-node>
+    <process-state name="[JEF] Controlar prazos">
+        <sub-process name="Controlar Prazos" binding="late"/>
+        <transition to="Testa saída Controlar prazos" name="Testa saída Controlar prazos"/>
+    </process-state>
+    <process-state name="[JEF] Controlar prazos da emenda - Automático">
+        <sub-process name="Controlar Prazos" binding="late"/>
+        <transition to="Testa saída emenda automática" name="Testa saída emenda automática"/>
+    </process-state>
+    <process-state name="[JEF] Controlar prazos da contestação - Automático">
+        <sub-process name="Controlar Prazos" binding="late"/>
+        <transition to="Testa saída contestação automática" name="Testa saída contestação automática"/>
+    </process-state>
+    <process-state name="[JEF] Controlar prazos da emenda">
+        <sub-process name="Controlar Prazos" binding="late"/>
+        <transition to="Testa saída controle da emenda" name="Testa saída controle da emenda"/>
+    </process-state>
+    <process-state name="[JEF] Controlar prazos da contestação">
+        <sub-process name="Controlar Prazos" binding="late"/>
+        <transition to="Testa saída - Controle da contestação" name="Testa saída - Controle da contestação"/>
+    </process-state>
+    <process-state name="[JEF] Controlar prazos para contrarrazões ">
+        <sub-process name="Controlar Prazos" binding="late"/>
+        <transition to="testa saída controle contrarrazões" name="testa saída controle contrarrazões"/>
+    </process-state>
+    <process-state name="[JEF] Controlar prazos de Recurso">
+        <sub-process name="Controlar Prazos" binding="late"/>
+        <transition to="Testa saída controle de prazo recurso" name="Testa saída controle de prazo recurso"/>
+        <event type="task-create">
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('pje:fluxo:tramitacao:idsTipoDocumentoManifestacao','47,46')}"/>
+        </event>
+    </process-state>
+    <process-state name="[JEF] Controlar prazos dos embargos de declaração">
+        <sub-process name="Controlar Prazos" binding="late"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+    </process-state>
+    <process-state name="[JEF] Designar perícia">
+        <sub-process name="Perícia" binding="late"/>
+        <transition to="Testa saída perícia" name="Testa saída perícia"/>
+    </process-state>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('saidaPericia') eq 'sentenca' ? 'Conclusão para julgamento' : (tramitacaoProcessualService.recuperaVariavel('saidaPericia') eq 'despacho' ? 'Conclusão para despacho' : (tramitacaoProcessualService.recuperaVariavel('saidaPericia') eq 'decisao' ? 'Conclusão para decisão' : (tramitacaoProcessualService.recuperaVariavel('saidaPericia') eq 'urgente' ? 'Conclusão urgente' : (tramitacaoProcessualService.recuperaVariavel('saidaPericia') eq 'comunicacao' ? 'Preparar ato de comunicação' : 'Saída de exceção'))))}" name="Testa saída perícia">
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para despacho"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para decisão"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão urgente"/>
+        <event type="node-leave">
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('saidaPericia')}"/>
+        </event>
+    </decision>
+    <task-node end-tasks="true" name="[JEF] Saída de exceção">
+        <task name="[JEF] Saída de exceção" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read,write"/>
+                <variable name="Processo_Fluxo_visualizarDecisao" mapped-name="frame:Processo_Fluxo_visualizarDecisao" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Análise da saída de exceção" name="Análise da saída de exceção"/>
+        <transition to="[JEF] Trânsito em julgado" name="Trânsito em julgado"/>
+        <transition to="[JEF] Designar perícia" name="Designar perito"/>
+        <transition to="[JEF] Consultar convênios" name="Consultar convênios"/>
+        <transition to="[JEF] Designar audiência" name="Designar audiência"/>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <transition to="[JEF] Redistribuir" name="Redistribuir"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="[JEF] Prevenção" name="Prevenção"/>
+        <transition to="[JEF] Contadoria" name="Contadoria"/>
+        <transition to="[JEF] Remeter para conciliação" name="Remeter para conciliação"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para despacho"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para decisão"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão urgente"/>
+        <transition to="[JEF] Alterar dados do processo" name="Alterar dados do processo"/>
+        <event type="node-enter">
+            <action expression="#{taskInstanceUtil.setVariable('pje:fluxo:temporizador:tarefaAguardar',true)}"/>
+            <action expression="#{taskInstanceUtil.setFrameDefaultTransition('Análise da saída de exceção')}"/>
+            <action expression="#{controlePrazoExpedienteNaoProcessualAction.setDataAguardarPrazoExpNaoProcessual('D', 1)}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Análise da saída de exceção">
+        <task name="[JEF] Análise da saída de exceção" swimlane="Secretaria e Gabinete" priority="3"/>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Expediente sem prazo">
+        <task name="[JEF] Expediente sem prazo" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="WEB-INF_xhtml_flx_exped_registroCiencia" mapped-name="frame:WEB-INF_xhtml_flx_exped_registroCiencia" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-create">
+            <action name="upd" expression="#{taskInstanceUtil.setVariable('pje:fluxo:registrociencia:meios','E,C,M,T,S')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Expediente sem manifestação">
+        <task name="[JEF] Expediente sem manifestação" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="[JEF] Trânsito em julgado" name="Trânsito em julgado"/>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Expediente com manifestação">
+        <task name="[JEF] Expediente com manifestação" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="[JEF] Trânsito em julgado" name="Trânsito em julgado"/>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para despacho"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para decisão"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão urgente"/>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Pendência para arquivo">
+        <task name="[JEF] Pendência para arquivo" swimlane="Secretaria e Gabinete" priority="3"/>
+        <transition to="[JEF] Arquivo" name="Arquivo"/>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Ato do magistrado - Sem mérito">
+        <task name="[JEF] Ato do magistrado - Sem mérito" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="Processo_Fluxo_revisarMinuta" mapped-name="frame:Processo_Fluxo_revisarMinuta" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Expediente da emenda com manifestação" name="Expediente da emenda com manifestação"/>
+        <transition to="[JEF] Pendência para arquivo" name="Pendência para arquivo"/>
+        <transition to="[JEF] Arquivo" name="Arquivo"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-create">
+            <action expression="#{taskInstanceUtil.setFrameDefaultTransition('Arquivo')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('pje:fluxo:jef:tarefaDarCienciaPartes','Preparar ato de comunicação')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('pje:fluxo:codEventoExclusivo','454')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Expediente da emenda com manifestação">
+        <task name="[JEF] Expediente da emenda com manifestação" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="WEB-INF_xhtml_flx_exped_registroCiencia" mapped-name="frame:WEB-INF_xhtml_flx_exped_registroCiencia" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Controlar prazos da contestação" name="Controlar prazos da contestação"/>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-create">
+            <action name="upd" expression="#{taskInstanceUtil.setVariable('pje:fluxo:registrociencia:meios','E,C,M,T,S')}"/>
+        </event>
+    </task-node>
+    <node name="Lançar sentença de extinção">
+        <transition to="[JEF] Ato do magistrado - Sem mérito" name="Ato do magistrado - Sem mérito"/>
+        <event type="node-leave">
+            <action expression="#{preencherMovimento.deCodigo(51).comComplementoDeCodigo(3).doTipoLivre().preencherComTexto(&quot;para sentença&quot;).lancarMovimento()}"/>
+            <action expression="#{documentoJudicialService.juntarDocumento('62', 'Sentença de Extinção', true)}"/>
+            <action expression="#{lancadorMovimentosService.gravaMovimentoTemporario(tramitacaoProcessualService.recuperaVariavel('minutaEmElaboracao'),454,'Magistrado',1,tramitacaoProcessualService.recuperaProcesso())}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('homologarMovimentosTemporarios','#{true}')}"/>
+            <action expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{false}')}"/>
+        </event>
+    </node>
+    <task-node end-tasks="true" name="[JEF] Arquivo">
+        <task name="[JEF] Arquivo" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="Processo_Fluxo_visualizarDecisao" mapped-name="frame:Processo_Fluxo_visualizarDecisao" access="read"/>
+            </controller>
+        </task>
+        <transition to="Término" name="Término"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="node-enter">
+            <action expression="#{preencherMovimento.deCodigo(246).lancarMovimento()}"/>
+        </event>
+    </task-node>
+    <process-state name="[JEF] Preparar ato judicial">
+        <sub-process name="Preparar Ato Judicial" binding="late"/>
+        <transition to="Testa saída preparar ato judicial" name="Testa saída preparar ato judicial"/>
+        <event type="node-leave">
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('paj:tipoConclusao')}"/>
+        </event>
+        <event type="node-enter">
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('paj:tipoConclusao', jbpmUtil.getCurrentTransition().getName())}"/>
+        </event>
+    </process-state>
+    <task-node end-tasks="true" name="[JEF] Ato proferido">
+        <task name="[JEF] Ato proferido" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="Processo_Fluxo_visualizarDecisao" mapped-name="frame:Processo_Fluxo_visualizarDecisao" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Controlar prazos" name="Controlar prazos"/>
+        <transition to="[JEF] Controlar prazos da emenda" name="Controlar prazos da emenda"/>
+        <transition to="[JEF] Controlar prazos da contestação" name="Controlar prazos da contestação"/>
+        <transition to="[JEF] Controlar prazos para contrarrazões " name="Controlar prazos para contrarrazões "/>
+        <transition to="[JEF] Controlar prazos de Recurso" name="Controlar prazos de Recurso"/>
+        <transition to="[JEF] Controlar prazos dos embargos de declaração" name="Controlar prazos dos Embargos de declaração"/>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <transition to="[JEF] Designar perícia" name="Designar perito"/>
+        <transition to="[JEF] Designar audiência" name="Designar audiência"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-create">
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('mostrarBotaoGravarNoFluxo', 'false')}"/>
+        </event>
+    </task-node>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('pje:atoNaoAssinado') ? 'Saída de exceção' : 'Ato proferido'}" name="Testa saída preparar ato judicial">
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="[JEF] Ato proferido" name="Ato proferido"/>
+        <event type="node-leave">
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('pje:atoNaoAssinado')}"/>
+        </event>
+    </decision>
+    <task-node end-tasks="true" name="[JEF] Trânsito em julgado">
+        <task name="[JEF] Trânsito em julgado" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="Processo_Fluxo_visualizarDecisao" mapped-name="frame:Processo_Fluxo_visualizarDecisao" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="[JEF] Baixa" name="Baixa"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="node-enter">
+            <action expression="#{DocumentoJudicialService.juntarDocumento('70', 'Certidão de [JEF] Trânsito em julgado', false)}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Baixa">
+        <task name="[JEF] Baixa" swimlane="Secretaria e Gabinete" priority="3"/>
+        <transition to="Término" name="Término"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Expediente de contrarrazões com manifestação">
+        <task name="[JEF] Expediente de contrarrazões com manifestação" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="WEB-INF_xhtml_flx_exped_registroCiencia" mapped-name="frame:WEB-INF_xhtml_flx_exped_registroCiencia" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para despacho"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para decisão"/>
+        <event type="task-create">
+            <action name="upd" expression="#{taskInstanceUtil.setVariable('pje:fluxo:registrociencia:meios','E,C,M,T,S')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Pendente de envio para Turma Recursal">
+        <task name="[JEF] Pendente de envio para Turma Recursal" swimlane="Secretaria e Gabinete" priority="3"/>
+        <transition to="Término" name="Término">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+    </task-node>
+    <task-node end-tasks="true" name="[JEF] Expediente de recurso com manifestação">
+        <task name="[JEF] Expediente de recurso com manifestação" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="WEB-INF_xhtml_flx_exped_registroCiencia" mapped-name="frame:WEB-INF_xhtml_flx_exped_registroCiencia" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para despacho"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para decisão"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão urgente"/>
+        <event type="node-enter">
+            <action name="upd" expression="#{taskInstanceUtil.setVariable('pje:fluxo:registrociencia:meios','E,C,M,T,S')}"/>
+        </event>
+    </task-node>
+    <process-state name="[JEF] Consultar convênios">
+        <sub-process name="Consultar Convênios" binding="late"/>
+        <transition to="Testa saída consultar convênios" name="Testa saída consultar convênios"/>
+    </process-state>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('saidaConvenio') eq 'despacho' ? 'Conclusão para despacho' : 'Saída de exceção'}" name="Testa saída consultar convênios">
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para despacho"/>
+        <event type="node-leave">
+            <action name="upd" expression="#{tramitacaoProcessualService.apagaVariavel('saidaConvenio')}"/>
+        </event>
+    </decision>
+    <process-state name="[JEF] Preparar ato de comunicação">
+        <sub-process name="Preparar Ato de Comunicação Simplificado" binding="late"/>
+        <transition to="Testa saída preparar ato de comunicação" name="Testa saída preparar ato de comunicação"/>
+    </process-state>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('pacs:naoIntimar') ? 'Saída de exceção' : 'Comunicação enviada'}" name="Testa saída preparar ato de comunicação">
+        <transition to="[JEF] Comunicação enviada" name="Comunicação enviada"/>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <event type="node-leave">
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('pacs:naoIntimar')}"/>
+        </event>
+    </decision>
+    <task-node end-tasks="true" name="[JEF] Comunicação enviada">
+        <task name="[JEF] Comunicação enviada" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="WEB-INF_xhtml_flx_exped_registroCiencia" mapped-name="frame:WEB-INF_xhtml_flx_exped_registroCiencia" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="[JEF] Controlar prazos" name="Controlar prazos"/>
+        <transition to="[JEF] Controlar prazos da emenda" name="Controlar prazos da emenda"/>
+        <transition to="[JEF] Controlar prazos da contestação" name="Controlar prazos da contestação"/>
+        <transition to="[JEF] Controlar prazos de Recurso" name="Controlar prazos de recurso"/>
+        <transition to="[JEF] Controlar prazos dos embargos de declaração" name="Controlar prazos dos embargos de declaração"/>
+        <transition to="[JEF] Designar audiência" name="Designar audiência"/>
+        <transition to="[JEF] Designar perícia" name="Designar perito"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="[JEF] Preparar ato de comunicação" name="Preparar nova comunicação"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para julgamento"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para despacho"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão para decisão"/>
+        <transition to="[JEF] Preparar ato judicial" name="Conclusão urgente"/>
+        <event type="task-create">
+            <action name="upd" expression="#{taskInstanceUtil.setVariable('pje:fluxo:registrociencia:meios','E,C,M,S,T')}"/>
+        </event>
+    </task-node>
+    <process-state name="[JEF] Redistribuir">
+        <sub-process name="Redistribuição" binding="late"/>
+        <transition to="Testa saída redistribuição" name="Testa saída redistribuição"/>
+    </process-state>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('saidaRedistribuicao') eq 'excecao' ? 'Saída de exceção' : 'Assunto perícia ou audiência?'}" name="Testa saída redistribuição">
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="Assunto perícia ou audiência?" name="Assunto perícia ou audiência?"/>
+        <event type="node-leave">
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('saidaRedistribuicao')}"/>
+        </event>
+    </decision>
+    <process-state name="[JEF] Prevenção">
+        <sub-process name="Prevenção" binding="late"/>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <event type="node-enter">
+            <action name="upd" expression="#{preencherMovimento.deCodigo(51).comComplementoDeCodigo(3).doTipoDominio().preencherComElementoDeCodigo(6).lancarMovimento()}"/>
+        </event>
+    </process-state>
+    <process-state name="[JEF] Contadoria">
+        <sub-process name="Contadoria" binding="late"/>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+    </process-state>
+    <process-state name="[JEF] Remeter para conciliação">
+        <sub-process name="Conciliação" binding="late"/>
+        <transition to="[JEF] Devolvidos da conciliação" name="Devolvidos da conciliação"/>
+    </process-state>
+    <task-node end-tasks="true" name="[JEF] Devolvidos da conciliação">
+        <task name="[JEF] Devolvidos da conciliação" swimlane="Secretaria e Gabinete" priority="3"/>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="Nó de Desvio - Juizado Especial Federal" name="Nó de Desvio - Juizado Especial Federal">
+            <condition expression="#{true}"/>
+        </transition>
+    </task-node>
+    <end-state name="Término"/>
+    <task-node end-tasks="true" name="Nó de Desvio - Juizado Especial Federal">
+        <task name="Nó de Desvio - Juizado Especial Federal" swimlane="Secretaria e Gabinete" priority="3"/>
+        <transition to="[JEF] Análise inicial - Perícia" name="Análise inicial - Perícia"/>
+        <transition to="[JEF] Análise inicial - Audiência" name="Análise inicial - Audiência"/>
+        <transition to="[JEF] Análise inicial" name="Análise inicial"/>
+        <transition to="[JEF] Análise do fim do prazo da contestação" name="Análise do fim do prazo da contestação"/>
+        <transition to="[JEF] Análise do fim do prazo da emenda" name="Análise do fim do prazo da emenda"/>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+        <transition to="[JEF] Análise da saída de exceção" name="Análise da saída de exceção"/>
+        <transition to="[JEF] Expediente sem prazo" name="Expediente sem prazo"/>
+        <transition to="[JEF] Expediente sem manifestação" name="Expediente sem manifestação"/>
+        <transition to="[JEF] Expediente com manifestação" name="Expediente com manifestação"/>
+        <transition to="[JEF] Pendência para arquivo" name="Pendência para arquivo"/>
+        <transition to="[JEF] Ato do magistrado - Sem mérito" name="Ato do magistrado - Sem mérito"/>
+        <transition to="[JEF] Expediente da emenda com manifestação" name="Expediente da emenda com manifestação"/>
+        <transition to="[JEF] Arquivo" name="Arquivo"/>
+        <transition to="[JEF] Ato proferido" name="Ato proferido"/>
+        <transition to="[JEF] Trânsito em julgado" name="Trânsito em julgado"/>
+        <transition to="[JEF] Baixa" name="Baixa"/>
+        <transition to="[JEF] Expediente de contrarrazões com manifestação" name="Expediente de contrarrazões com manifestação"/>
+        <transition to="[JEF] Pendente de envio para Turma Recursal" name="Pendente de envio para Turma Recursal"/>
+        <transition to="[JEF] Expediente de recurso com manifestação" name="Expediente de recurso com manifestação"/>
+        <transition to="Término" name="Término"/>
+        <transition to="[JEF] Comunicação enviada" name="Comunicação enviada"/>
+        <transition to="[JEF] Devolvidos da conciliação" name="Devolvidos da conciliação"/>
+    </task-node>
+    <process-state name="[JEF] Alterar dados do processo">
+        <sub-process name="Retificar autuação" binding="late"/>
+        <transition to="[JEF] Saída de exceção" name="Saída de exceção"/>
+    </process-state>  
+    <!-- PROCESS-EVENTS -->
+    <event type="superstate-enter">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="process-start">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="before-signal">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-create">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="subprocess-created">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-assign">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="transition">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="after-signal">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="timer">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-start">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="subprocess-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="process-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="node-leave">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="superstate-leave">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="node-enter">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>  
+    <!-- ACTIONS --> 
+</process-definition>

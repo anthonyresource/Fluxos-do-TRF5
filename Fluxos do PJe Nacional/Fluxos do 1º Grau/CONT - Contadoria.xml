@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<process-definition xmlns="urn:jbpm.org:jpdl-3.2" name="Contadoria"> 
+    <!-- SWIMLANES -->
+    <swimlane name="Servidores e estagiários">
+        <assignment pooled-actors="#{localizacaoAssignment.getPooledActors('91:5171,91:5942,91:5182')}"/>
+    </swimlane>  
+    <!-- START-STATE -->
+    <start-state name="Início">
+        <task name="Tarefa inicial" priority="3"/>
+        <transition to="Incluir cálculo" name="Incluir cálculo"/>
+        <event type="node-leave">
+            <action expression="#{preencherMovimento.deCodigo(123).comComplementoDeCodigo(20).doTipoDinamico().preencherComObjeto(tramitacaoProcessualService.recuperaProcesso().orgaoJulgador).comComplementoDeCodigo(18).doTipoDominio().preencherComElementoDeCodigo(37).comComplementoDeCodigo(7).doTipoLivre().preencherComTexto('Contadoria').associarAoProcesso(tramitacaoProcessualService.recuperaProcesso()).lancarMovimento()}"/>
+        </event>
+    </start-state>  
+    <!-- NODES -->
+    <task-node end-tasks="true" name="Incluir cálculo">
+        <task name="Incluir cálculo" swimlane="Servidores e estagiários" priority="3">
+            <controller>
+                <variable name="minutaEmElaboracao" mapped-name="textEditCombo:minutaEmElaboracao" access="read,write"/>
+                <variable name="minutarEmLote" mapped-name="minutarLote:minutarEmLote" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Nó de Desvio - Contadoria" name="Nó de Desvio - Contadoria">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Assinar Cálculo" name="Encaminhar para assinatura"/>
+        <transition to="Término" name="Encaminhar para secretaria"/>
+        <event type="task-create">
+            <action name="upd" expression="#{taskInstanceUtil.setVariable('mostrarBotaoGravarNoFluxo', 'true')}"/>
+            <action name="upd" expression="#{taskInstanceUtil.setVariable('tiposDisponiveisIds', '57')}"/>
+            <action name="upd" expression="#{taskInstanceUtil.setFrameDefaultTransition('pje:fluxo:transicao:dispensaRequeridos')}"/>
+        </event>
+        <event type="node-leave">
+            <action expression="#{processualístico.gravaVariavel('usuarioMinuta', authenticator.getUsuarioLogado())}"/>
+            <action expression="#{not empty processoHome.idProcessoDocumento ? org.jboss.seam.bpm.processInstance.contextInstance.setVariable('minutaEmElaboracao', processoHome.idProcessoDocumento) : ''}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Assinar Cálculo">
+        <task name="Assinar Cálculo" swimlane="Servidores e estagiários" priority="3">
+            <controller>
+                <variable name="Processo_Fluxo_revisarMinuta" mapped-name="frame:Processo_Fluxo_revisarMinuta" access="read,write"/>
+                <variable name="UsuarioMinuta" mapped-name="textAlert:UsuarioMinuta" access="read,write"/>
+                <variable name="assinaturaEmLote" mapped-name="assinarLote:assinaturaEmLote" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Incluir cálculo" name="Devolver para minuta"/>
+        <transition to="Nó de Desvio - Contadoria" name="Nó de Desvio - Contadoria">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Término" name="Encaminhar para secretaria">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action name="upd" expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{false}')}"/>
+        </event>
+        <event type="task-create">
+            <action expression="#{taskInstanceUtil.setFrameDefaultTransition('Encaminhar para secretaria')}"/>
+            <action name="upd" expression="#{taskInstanceUtil.setVariable('tiposDisponiveisIds', '57')}"/>
+            <action name="upd" expression="#{taskInstanceUtil.setVariable('mostrarBotaoGravarNoFluxo', 'false')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Nó de Desvio - Contadoria">
+        <task name="Nó de Desvio - Contadoria" priority="3"/>
+        <transition to="Término" name="Término"/>
+        <transition to="Incluir cálculo" name="Incluir cálculo"/>
+        <transition to="Assinar Cálculo" name="Assinar Cálculo"/>
+    </task-node>
+    <end-state name="Término">
+        <event type="node-enter">
+            <action expression="#{preencherMovimento.deCodigo(980).comComplementoDeCodigo(7).doTipoDinamico().preencherComObjeto(processoTrfHome.instance.orgaoJulgador).associarAoProcesso(tramitacaoProcessualService.recuperaProcesso()).lancarMovimento()}"/>
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('condicaoLancamentoMovimentosTemporario')}"/>
+        </event>
+    </end-state>  
+    <!-- PROCESS-EVENTS -->
+    <event type="superstate-enter">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="process-start">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="before-signal">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-create">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="subprocess-created">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-assign">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="transition">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="after-signal">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="timer">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-start">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="subprocess-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="process-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="node-leave">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="superstate-leave">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="node-enter">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>  
+    <!-- ACTIONS --> 
+</process-definition>

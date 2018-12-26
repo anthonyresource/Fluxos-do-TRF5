@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<process-definition xmlns="urn:jbpm.org:jpdl-3.2" name="Redistribuição"> 
+    <!-- SWIMLANES -->
+    <swimlane name="Secretaria e Gabinete">
+        <assignment pooled-actors="#{localizacaoAssignment.getPooledActors('10:1338,9:1469')}"/>
+    </swimlane>  
+    <!-- START-STATE -->
+    <start-state name="Início">
+        <task name="Tarefa inicial" priority="3"/>
+        <transition to="Testa prazos abertos" name="Testa prazos abertos"/>
+    </start-state>  
+    <!-- NODES -->
+    <decision expression="#{processoParteExpedienteHome.existeExpedientePendenteComPrazoAberto(tramitacaoProcessualService.recuperaProcesso(), 'true') ? 'Encerrar prazos abertos' : 'Redistribuir'}" name="Testa prazos abertos">
+        <transition to="Redistribuir" name="Redistribuir"/>
+        <transition to="Encerrar prazos abertos" name="Encerrar prazos abertos"/>
+    </decision>
+    <task-node end-tasks="true" name="Redistribuir">
+        <task name="Redistribuir" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="Processo_Fluxo_abaRedistribuicaoProcesso" mapped-name="frame:Processo_Fluxo_abaRedistribuicaoProcesso" access="read,write"/>
+            </controller>
+        </task>
+        <description><![CDATA[]]></description>
+        <transition to="Registra evento de redistribuição" name="Registra evento de redistribuição">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Nó de Desvio - Redistribuição" name="Nó de Desvio - Redistribuição">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Saída de exceção" name="Saída de exceção"/>
+        <event type="task-create">
+            <action expression="#{taskInstanceUtil.setFrameDefaultTransition('Registra evento de redistribuição')}"/>
+            <action name="upd" expression="#{taskInstanceUtil.setVariable('mostrarBotaoGravarNoFluxo','false')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Encerrar prazos abertos">
+        <task name="Encerrar prazos abertos" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="aviso" mapped-name="textAlert:aviso" access="read,write"/>
+                <variable name="WEB-INF_xhtml_flx_exped_encerrarExpedienteManual" mapped-name="frame:WEB-INF_xhtml_flx_exped_encerrarExpedienteManual" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Nó de Desvio - Redistribuição" name="Nó de Desvio - Redistribuição">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Testa prazos abertos" name="Redistribuir"/>
+        <transition to="Saída de exceção" name="Saída de exceção"/>
+        <event type="task-create">
+            <action name="upd" expression="#{taskInstanceUtil.setVariable('mostrarBotaoGravarNoFluxo','false')}"/>
+        </event>
+    </task-node>
+    <node name="Registra evento de redistribuição">
+        <transition to="Término" name="Término"/>
+        <event type="node-enter">
+            <action expression="#{org.jboss.seam.bpm.processInstance.contextInstance.setVariable('pje:processoRedistribuido', 'true')}"/>
+        </event>
+    </node>
+    <node name="Saída de exceção">
+        <transition to="Término" name="Término"/>
+        <event type="node-enter">
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('saidaRedistribuicao', 'excecao')}"/>
+        </event>
+    </node>
+    <end-state name="Término"/>
+    <task-node end-tasks="true" name="Nó de Desvio - Redistribuição">
+        <task name="Nó de Desvio - Redistribuição" priority="3"/>
+        <transition to="Redistribuir" name="Redistribuir"/>
+        <transition to="Término" name="Término"/>
+        <transition to="Encerrar prazos abertos" name="Encerrar prazos abertos"/>
+    </task-node>  
+    <!-- PROCESS-EVENTS -->
+    <event type="superstate-enter">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="process-start">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="before-signal">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="subprocess-created">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-create">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="transition">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-assign">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="after-signal">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="timer">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-start">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="subprocess-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="node-leave">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="process-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="superstate-leave">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="node-enter">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>  
+    <!-- ACTIONS --> 
+</process-definition>

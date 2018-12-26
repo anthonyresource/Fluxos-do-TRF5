@@ -1,0 +1,600 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<process-definition xmlns="urn:jbpm.org:jpdl-3.2" name="Preparar Ato Judicial">
+    <description><![CDATA[Fluxo destinado a preparação de atos judiciais.
+
+Para utilizar este fluxo, faz-se necessário incluir as seguintes expressões nó de sub-processo:
+
+Entrar no nó: #{tramitacaoProcessualService.gravaVariavel('paj:tipoConclusao', jbpmUtil.getCurrentTransition().getName())}
+
+Sair do nó: #{tramitacaoProcessualService.apagaVariavel('paj:tipoConclusao')}
+
+Todas as transições de entrada neste fluxo devem ter os seguintes nome:
+
+1. Conclusão para julgamento
+2. Conclusão para despacho
+3. Conclusão para decisão
+4. Conclusão urgente
+
+O evento de conclusão adequado será lançado dentro deste fluxo.]]></description>  
+    <!-- SWIMLANES -->
+    <swimlane name="Secretaria e gabinete">
+        <assignment pooled-actors="#{localizacaoAssignment.getPooledActors('9:1469,10:1338')}"/>
+    </swimlane>  
+    <!-- START-STATE -->
+    <start-state name="Início">
+        <task name="Tarefa inicial" priority="3">
+            <controller/>
+        </task>
+        <transition to="Apagar variável minutaEmElaboracao" name="Apagar variável minutaEmElaboracao"/>
+        <event type="node-enter">
+            <action expression="#{org.jboss.seam.bpm.processInstance.contextInstance.deleteVariable('MovimentosLancadosTemporariamente')}"/>
+            <action expression="#{org.jboss.seam.bpm.processInstance.contextInstance.deleteVariable('AgrupamentosLancadosTemporariamente')}"/>
+        </event>
+    </start-state>  
+    <!-- NODES -->
+    <node name="Apagar variável minutaEmElaboracao">
+        <transition to="Testa conclusão" name="Testa conclusão"/>
+        <event type="node-enter">
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('minutaEmElaboracao')}"/>
+        </event>
+    </node>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('paj:tipoConclusao')}" name="Testa conclusão">
+        <transition to="Conclusão para julgamento" name="Conclusão para julgamento"/>
+        <transition to="Conclusão para despacho" name="Conclusão para despacho"/>
+        <transition to="Conclusão para decisão" name="Conclusão para decisão"/>
+        <transition to="Conclusão urgente" name="Conclusão urgente"/>
+    </decision>
+    <node name="Conclusão para julgamento">
+        <transition to="Minutar ato - Sentença" name="Minutar ato - Sentença"/>
+        <event type="node-enter">
+            <action expression="#{preencherMovimento.deCodigo(51).comComplementoDeCodigo(3).doTipoDominio().preencherComElementoDeCodigo(36).lancarMovimento()}"/>
+        </event>
+    </node>
+    <node name="Conclusão para despacho">
+        <transition to="Minutar ato - Despacho" name="Minutar ato - Despacho"/>
+        <event type="node-enter">
+            <action expression="#{preencherMovimento.deCodigo(51).comComplementoDeCodigo(3).doTipoDominio().preencherComElementoDeCodigo(5).lancarMovimento()}"/>
+        </event>
+    </node>
+    <node name="Conclusão para decisão">
+        <transition to="Minutar ato - Decisão" name="Minutar ato - Decisão"/>
+        <event type="node-enter">
+            <action expression="#{preencherMovimento.deCodigo(51).comComplementoDeCodigo(3).doTipoDominio().preencherComElementoDeCodigo(6).lancarMovimento()}"/>
+        </event>
+    </node>
+    <node name="Conclusão urgente">
+        <transition to="Minutar ato - Urgente" name="Minutar ato - Urgente"/>
+        <event type="node-enter">
+            <action expression="#{preencherMovimento.deCodigo(51).comComplementoDeCodigo(3).doTipoDominio().preencherComElementoDeCodigo(6).lancarMovimento()}"/>
+        </event>
+    </node>
+    <task-node end-tasks="true" name="Minutar ato - Sentença">
+        <task name="Minutar ato - Sentença" swimlane="Secretaria e gabinete" priority="3">
+            <controller>
+                <variable name="ModeloDocumento_listView" mapped-name="page:ModeloDocumento_listView" access="read,write"/>
+                <variable name="Minutar_ato" mapped-name="textEditCombo:Minutar_ato" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+                <variable name="aviso" mapped-name="textAlert:aviso" access="read,write"/>
+                <variable name="MinutarEmLote" mapped-name="minutarLote:MinutarEmLote" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Excluir conclusão" name="Descartar minuta"/>
+        <transition to="Revisar minuta - Sentença" name="Encaminhar para revisão - Sentença"/>
+        <transition to="Assinar ato - Sentença" name="Encaminhar para assinatura - Sentença"/>
+        <transition to="Migrar para despacho" name="Minutar ato - Despacho"/>
+        <transition to="Migrar para decisão" name="Minutar ato - Decisão"/>
+        <transition to="Migrar para urgente" name="Minutar ato - Urgente"/>
+        <transition to="Nó de Desvio - Preparar Ato Judicial" name="Nó de Desvio - Preparar Ato Judicial">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action name="upd" expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{true}')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','62')}"/>
+            <action name="upd" expression="#{tipoDocumento.set('Minutar_ato',62)}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Minutar ato - Despacho, Minutar ato - Decisão, Minutar ato - Urgente, Descartar minuta')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:lancamentoMovimentoObrigatorio','true')}"/>
+        </event>
+        <event type="task-create">
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('mostrarBotaoGravarNoFluxo', 'true')}"/>
+        </event>
+        <event type="node-leave">
+            <action expression="#{not empty processoHome.idProcessoDocumento ? org.jboss.seam.bpm.processInstance.contextInstance.setVariable('minutaEmElaboracao', processoHome.idProcessoDocumento) : ''}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavel('usuarioMinuta', authenticator.getUsuarioLogado())}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Minutar ato - Despacho">
+        <task name="Minutar ato - Despacho" swimlane="Secretaria e gabinete" priority="3">
+            <controller>
+                <variable name="ModeloDocumento_listView" mapped-name="page:ModeloDocumento_listView" access="read,write"/>
+                <variable name="Minutar_ato" mapped-name="textEditCombo:Minutar_ato" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+                <variable name="aviso" mapped-name="textAlert:aviso" access="read,write"/>
+                <variable name="MinutarEmLote" mapped-name="minutarLote:MinutarEmLote" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Excluir conclusão" name="Descartar minuta"/>
+        <transition to="Revisar minuta - Despacho" name="Encaminhar para revisão - Despacho"/>
+        <transition to="Assinar ato - Despacho" name="Encaminhar para assinatura - Despacho"/>
+        <transition to="Migrar para sentença" name="Minutar ato - Sentença"/>
+        <transition to="Migrar para decisão" name="Minutar ato - Decisão"/>
+        <transition to="Migrar para urgente" name="Minutar ato - Urgente"/>
+        <transition to="Nó de Desvio - Preparar Ato Judicial" name="Nó de Desvio - Preparar Ato Judicial">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action name="upd" expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{true}')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','63,119')}"/>
+            <action name="upd" expression="#{tipoDocumento.set('Minutar_ato',63,119)}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Minutar ato - Sentença, Minutar ato - Decisão, Minutar ato - Urgente, Descartar minuta')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:lancamentoMovimentoObrigatorio','true')}"/>
+        </event>
+        <event type="task-create">
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('mostrarBotaoGravarNoFluxo', 'true')}"/>
+        </event>
+        <event type="node-leave">
+            <action expression="#{not empty processoHome.idProcessoDocumento ? org.jboss.seam.bpm.processInstance.contextInstance.setVariable('minutaEmElaboracao', processoHome.idProcessoDocumento) : ''}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('usuarioMinuta', authenticator.getUsuarioLogado())}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Minutar ato - Decisão">
+        <task name="Minutar ato - Decisão" swimlane="Secretaria e gabinete" priority="3">
+            <controller>
+                <variable name="ModeloDocumento_listView" mapped-name="page:ModeloDocumento_listView" access="read,write"/>
+                <variable name="Minutar_ato" mapped-name="textEditCombo:Minutar_ato" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+                <variable name="aviso" mapped-name="textAlert:aviso" access="read,write"/>
+                <variable name="MinutarEmLote" mapped-name="minutarLote:MinutarEmLote" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read"/>
+            </controller>
+        </task>
+        <transition to="Excluir conclusão" name="Descartar minuta"/>
+        <transition to="Revisar minuta - Decisão" name="Encaminhar para revisão - Decisão"/>
+        <transition to="Assinar ato - Decisão" name="Encaminhar para assinatura - Decisão"/>
+        <transition to="Minutar ato - Urgente" name="Minutar ato - Urgente"/>
+        <transition to="Migrar para sentença" name="Minutar ato - Sentença"/>
+        <transition to="Migrar para despacho" name="Minutar ato - Despacho"/>
+        <transition to="Nó de Desvio - Preparar Ato Judicial" name="Nó de Desvio - Preparar Ato Judicial">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action name="upd" expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{true}')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','64,76')}"/>
+            <action name="upd" expression="#{tipoDocumento.set('Minutar_ato',64,76)}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Minutar ato - Sentença, Minutar ato - Despacho, Minutar ato - Urgente, Descartar minuta')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:lancamentoMovimentoObrigatorio','true')}"/>
+        </event>
+        <event type="task-create">
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('mostrarBotaoGravarNoFluxo', 'true')}"/>
+        </event>
+        <event type="node-leave">
+            <action expression="#{not empty processoHome.idProcessoDocumento ? org.jboss.seam.bpm.processInstance.contextInstance.setVariable('minutaEmElaboracao', processoHome.idProcessoDocumento) : ''}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavel('usuarioMinuta', authenticator.getUsuarioLogado())}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Minutar ato - Urgente">
+        <task name="Minutar ato - Urgente" swimlane="Secretaria e gabinete" priority="3">
+            <controller>
+                <variable name="ModeloDocumento_listView" mapped-name="page:ModeloDocumento_listView" access="read,write"/>
+                <variable name="Minutar_ato" mapped-name="textEditCombo:Minutar_ato" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+                <variable name="aviso" mapped-name="textAlert:aviso" access="read,write"/>
+                <variable name="MinutarEmLote" mapped-name="minutarLote:MinutarEmLote" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Revisar minuta - Urgente" name="Encaminhar para revisão - Urgente"/>
+        <transition to="Assinar ato - Urgente" name="Encaminhar para assinatura - Urgente"/>
+        <transition to="Minutar ato - Decisão" name="Minutar ato - Decisão"/>
+        <transition to="Excluir conclusão" name="Descartar minuta"/>
+        <transition to="Migrar para sentença" name="Minutar ato - Sentença"/>
+        <transition to="Migrar para despacho" name="Minutar ato - Despacho"/>
+        <transition to="Nó de Desvio - Preparar Ato Judicial" name="Nó de Desvio - Preparar Ato Judicial">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action name="upd" expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{true}')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','62,155,161,162,163,164')}"/>
+            <action name="upd" expression="#{tipoDocumento.set('Minutar_ato',62,155,161,162,163,164)}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Minutar ato - Sentença, Minutar ato - Decisão, Minutar ato - Despacho, Descartar minuta')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:lancamentoMovimentoObrigatorio','true')}"/>
+        </event>
+        <event type="task-create">
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('mostrarBotaoGravarNoFluxo', 'true')}"/>
+        </event>
+        <event type="node-leave">
+            <action expression="#{not empty processoHome.idProcessoDocumento ? org.jboss.seam.bpm.processInstance.contextInstance.setVariable('minutaEmElaboracao', processoHome.idProcessoDocumento) : ''}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavel('usuarioMinuta', authenticator.getUsuarioLogado())}"/>
+        </event>
+    </task-node>
+    <node name="Migrar para sentença">
+        <transition to="Minutar ato - Sentença" name="Minutar ato - Sentença"/>
+        <event type="node-leave">
+            <action expression="#{preencherMovimento.deCodigo(51).comComplementoDeCodigo(3).doTipoDominio().preencherComElementoDeCodigo(36).lancarMovimento()}"/>
+        </event>
+        <event type="node-enter">
+            <action expression="#{preencherMovimento.deCodigo(123).comComplementoDeCodigo(20).doTipoDinamico().preencherComObjeto(tramitacaoProcessualService.recuperaProcesso().orgaoJulgador).comComplementoDeCodigo(18).doTipoDominio().preencherComElementoDeCodigo(183).comComplementoDeCodigo(7).doTipoLivre().preencherComTexto('Conclusão para Despacho').lancarMovimento()}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('paj:tipoConclusao', 'Conclusão para julgamento') }"/>
+        </event>
+    </node>
+    <node name="Migrar para despacho">
+        <transition to="Minutar ato - Despacho" name="Minutar ato - Despacho"/>
+        <event type="node-leave">
+            <action expression="#{preencherMovimento.deCodigo(51).comComplementoDeCodigo(3).doTipoDominio().preencherComElementoDeCodigo(5).lancarMovimento()}"/>
+        </event>
+        <event type="node-enter">
+            <action expression="#{preencherMovimento.deCodigo(123).comComplementoDeCodigo(20).doTipoDinamico().preencherComObjeto(tramitacaoProcessualService.recuperaProcesso().orgaoJulgador).comComplementoDeCodigo(18).doTipoDominio().preencherComElementoDeCodigo(183).comComplementoDeCodigo(7).doTipoLivre().preencherComTexto('Conclusão para Despacho').lancarMovimento()}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('paj:tipoConclusao', 'Conclusão para despacho') }"/>
+        </event>
+    </node>
+    <node name="Migrar para decisão">
+        <transition to="Minutar ato - Decisão" name="Minutar ato - Decisão"/>
+        <event type="node-leave">
+            <action expression="#{preencherMovimento.deCodigo(51).comComplementoDeCodigo(3).doTipoDominio().preencherComElementoDeCodigo(6).lancarMovimento()}"/>
+        </event>
+        <event type="node-enter">
+            <action expression="#{preencherMovimento.deCodigo(123).comComplementoDeCodigo(20).doTipoDinamico().preencherComObjeto(tramitacaoProcessualService.recuperaProcesso().orgaoJulgador).comComplementoDeCodigo(18).doTipoDominio().preencherComElementoDeCodigo(183).comComplementoDeCodigo(7).doTipoLivre().preencherComTexto('Conclusão para Decisão').lancarMovimento()}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('paj:tipoConclusao', 'Conclusão para decisão') }"/>
+        </event>
+    </node>
+    <node name="Migrar para urgente">
+        <transition to="Minutar ato - Urgente" name="Minutar ato - Urgente"/>
+        <event type="node-leave">
+            <action expression="#{preencherMovimento.deCodigo(51).comComplementoDeCodigo(3).doTipoDominio().preencherComElementoDeCodigo(6).lancarMovimento()}"/>
+        </event>
+        <event type="node-enter">
+            <action expression="#{preencherMovimento.deCodigo(123).comComplementoDeCodigo(20).doTipoDinamico().preencherComObjeto(tramitacaoProcessualService.recuperaProcesso().orgaoJulgador).comComplementoDeCodigo(18).doTipoDominio().preencherComElementoDeCodigo(183).comComplementoDeCodigo(7).doTipoLivre().preencherComTexto('Conclusão para Decisão').lancarMovimento()}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('paj:tipoConclusao', 'Conclusão urgente') }"/>
+        </event>
+    </node>
+    <task-node end-tasks="true" name="Revisar minuta - Sentença">
+        <task name="Revisar minuta - Sentença" swimlane="Secretaria e gabinete" priority="3">
+            <controller>
+                <variable name="Processo_Fluxo_revisarMinuta" mapped-name="frame:Processo_Fluxo_revisarMinuta" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read,write"/>
+                <variable name="AssinaturaEmLote" mapped-name="assinarLote:AssinaturaEmLote" access="read"/>
+                <variable name="UsuarioMinuta" mapped-name="textAlert:UsuarioMinuta" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Minutar ato - Sentença" name="Retornar para minutar ato - Sentença"/>
+        <transition to="Assinar ato - Sentença" name="Encaminhar para assinatura - Sentença"/>
+        <transition to="Testa expedição via sistema" name="Testa expedição via sistema">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Migrar para despacho" name="Retornar para minutar ato - Despacho"/>
+        <transition to="Migrar para decisão" name="Retornar para minutar ato - Decisão"/>
+        <transition to="Migrar para urgente" name="Retornar para minutar ato - Urgente"/>
+        <transition to="Nó de Desvio - Preparar Ato Judicial" name="Nó de Desvio - Preparar Ato Judicial">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action name="upd" expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{false}')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','62,155,161,162,163,164')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Retornar para minutar ato - Sentença, Retornar para minutar ato - Decisão, Retornar para minutar ato - Despacho, Retornar para minutar ato - Urgente, Controlar Prazo para Recurso')}"/>
+        </event>
+        <event type="task-create">
+            <action name="upd" expression="#{taskInstanceUtil.setFrameDefaultTransition('Testa expedição via sistema')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:lancamentoMovimentoObrigatorio', 'true')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Revisar minuta - Despacho">
+        <task name="Revisar minuta - Despacho" swimlane="Secretaria e gabinete" priority="3">
+            <controller>
+                <variable name="Processo_Fluxo_revisarMinuta" mapped-name="frame:Processo_Fluxo_revisarMinuta" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read,write"/>
+                <variable name="AssinaturaEmLote" mapped-name="assinarLote:AssinaturaEmLote" access="read"/>
+                <variable name="UsuarioMinuta" mapped-name="textAlert:UsuarioMinuta" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Minutar ato - Despacho" name="Retornar para minutar ato - Despacho"/>
+        <transition to="Assinar ato - Despacho" name="Encaminhar para assinatura - Despacho"/>
+        <transition to="Testa expedição via sistema" name="Testa expedição via sistema">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Migrar para sentença" name="Retornar para minutar ato - Sentença"/>
+        <transition to="Migrar para decisão" name="Retornar para minutar ato - Decisão"/>
+        <transition to="Migrar para urgente" name="Retornar para minutar ato - Urgente"/>
+        <transition to="Nó de Desvio - Preparar Ato Judicial" name="Nó de Desvio - Preparar Ato Judicial">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action name="upd" expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{false}')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','63,119')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Retornar para minutar ato - Sentença, Retornar para minutar ato - Decisão, Retornar para minutar ato - Despacho, Retornar para minutar ato - Urgente, Controlar Prazo para Recurso')}"/>
+        </event>
+        <event type="task-create">
+            <action name="upd" expression="#{taskInstanceUtil.setFrameDefaultTransition('Testa expedição via sistema')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:lancamentoMovimentoObrigatorio', 'true')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Revisar minuta - Decisão">
+        <task name="Revisar minuta - Decisão" swimlane="Secretaria e gabinete" priority="3">
+            <controller>
+                <variable name="Processo_Fluxo_revisarMinuta" mapped-name="frame:Processo_Fluxo_revisarMinuta" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read,write"/>
+                <variable name="AssinaturaEmLote" mapped-name="assinarLote:AssinaturaEmLote" access="read,write"/>
+                <variable name="UsuarioMinuta" mapped-name="textAlert:UsuarioMinuta" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Minutar ato - Decisão" name="Retornar para minutar ato - Decisão"/>
+        <transition to="Assinar ato - Decisão" name="Encaminhar para assinatura - Decisão"/>
+        <transition to="Testa expedição via sistema" name="Testa expedição via sistema">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Minutar ato - Urgente" name="Retornar para minutar ato - Urgente"/>
+        <transition to="Migrar para sentença" name="Retornar para minutar ato - Sentença"/>
+        <transition to="Migrar para despacho" name="Retornar para minutar ato - Despacho"/>
+        <transition to="Nó de Desvio - Preparar Ato Judicial" name="Nó de Desvio - Preparar Ato Judicial">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action name="upd" expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{false}')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','64,76')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Retornar para minutar ato - Sentença, Retornar para minutar ato - Decisão, Retornar para minutar ato - Despacho, Retornar para minutar ato - Urgente, Controlar Prazo para Recurso')}"/>
+        </event>
+        <event type="task-create">
+            <action name="upd" expression="#{taskInstanceUtil.setFrameDefaultTransition('Testa expedição via sistema')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:lancamentoMovimentoObrigatorio', 'true')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Revisar minuta - Urgente">
+        <task name="Revisar minuta - Urgente" swimlane="Secretaria e gabinete" priority="3">
+            <controller>
+                <variable name="Processo_Fluxo_revisarMinuta" mapped-name="frame:Processo_Fluxo_revisarMinuta" access="read,write"/>
+                <variable name="MovimentarEmLote" mapped-name="movimentarLote:MovimentarEmLote" access="read,write"/>
+                <variable name="AssinaturaEmLote" mapped-name="assinarLote:AssinaturaEmLote" access="read,write"/>
+                <variable name="UsuarioMinuta" mapped-name="textAlert:UsuarioMinuta" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Assinar ato - Urgente" name="Assinar ato - Urgente"/>
+        <transition to="Minutar ato - Decisão" name="Retornar para minutar ato - Decisão"/>
+        <transition to="Minutar ato - Urgente" name="Retornar para minutar ato - Urgente"/>
+        <transition to="Testa expedição via sistema" name="Testa expedição via sistema">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Migrar para sentença" name="Retornar para minutar ato - Sentença"/>
+        <transition to="Migrar para despacho" name="Retornar para minutar ato - Despacho"/>
+        <transition to="Nó de Desvio - Preparar Ato Judicial" name="Nó de Desvio - Preparar Ato Judicial">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{false}')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','62,155,161,162,163,164')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Retornar para minutar ato - Sentença, Retornar para minutar ato - Decisão, Retornar para minutar ato - Despacho, Retornar para minutar ato - Urgente, Controlar Prazo para Recurso')}"/>
+        </event>
+        <event type="task-create">
+            <action expression="#{taskInstanceUtil.setFrameDefaultTransition('Testa expedição via sistema')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:lancamentoMovimentoObrigatorio', 'true')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Assinar ato - Sentença">
+        <task name="Assinar ato - Sentença" swimlane="Secretaria e gabinete" priority="4">
+            <controller>
+                <variable name="Processo_Fluxo_revisarMinuta" mapped-name="frame:Processo_Fluxo_revisarMinuta" access="read,write"/>
+                <variable name="AssinaturaEmLote" mapped-name="assinarLote:AssinaturaEmLote" access="read,write"/>
+                <variable name="UsuarioMinuta" mapped-name="textAlert:UsuarioMinuta" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Minutar ato - Sentença" name="Retornar para minutar ato - Sentença"/>
+        <transition to="Testa expedição via sistema" name="Testa expedição via sistema"/>
+        <transition to="Migrar para despacho" name="Retornar para minutar ato - Despacho"/>
+        <transition to="Migrar para decisão" name="Retornar para minutar ato - Decisão"/>
+        <transition to="Migrar para urgente" name="Retornar para minutar ato - Urgente"/>
+        <transition to="Nó de Desvio - Preparar Ato Judicial" name="Nó de Desvio - Preparar Ato Judicial">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{false}')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','62,155,161,162,163,164')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Retornar para minutar ato - Sentença, Retornar para minutar ato - Decisão, Retornar para minutar ato - Despacho, Retornar para minutar ato - Urgente, Controlar Prazo para Recurso')}"/>
+        </event>
+        <event type="task-create">
+            <action name="upd" expression="#{taskInstanceUtil.setFrameDefaultTransition('Testa expedição via sistema')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:lancamentoMovimentoObrigatorio', 'true')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Assinar ato - Despacho">
+        <task name="Assinar ato - Despacho" swimlane="Secretaria e gabinete" priority="4">
+            <controller>
+                <variable name="Processo_Fluxo_revisarMinuta" mapped-name="frame:Processo_Fluxo_revisarMinuta" access="read,write"/>
+                <variable name="AssinaturaEmLote" mapped-name="assinarLote:AssinaturaEmLote" access="read,write"/>
+                <variable name="UsuarioMinuta" mapped-name="textAlert:UsuarioMinuta" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Minutar ato - Despacho" name="Retornar para minutar ato - Despacho"/>
+        <transition to="Testa expedição via sistema" name="Testa expedição via sistema">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Migrar para sentença" name="Retornar para minutar ato - Sentença"/>
+        <transition to="Migrar para decisão" name="Retornar para minutar ato - Decisão"/>
+        <transition to="Migrar para urgente" name="Retornar para minutar ato - Urgente"/>
+        <transition to="Nó de Desvio - Preparar Ato Judicial" name="Nó de Desvio - Preparar Ato Judicial">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{false}')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','63,119')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Retornar para minutar ato - Sentença, Retornar para minutar ato - Decisão, Retornar para minutar ato - Despacho, Retornar para minutar ato - Urgente, Controlar Prazo para Recurso')}"/>
+        </event>
+        <event type="task-create">
+            <action expression="#{taskInstanceUtil.setFrameDefaultTransition('Testa expedição via sistema')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:lancamentoMovimentoObrigatorio', 'true')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Assinar ato - Decisão">
+        <task name="Assinar ato - Decisão" swimlane="Secretaria e gabinete" priority="4">
+            <controller>
+                <variable name="Processo_Fluxo_revisarMinuta" mapped-name="frame:Processo_Fluxo_revisarMinuta" access="read,write"/>
+                <variable name="AssinaturaEmLote" mapped-name="assinarLote:AssinaturaEmLote" access="read,write"/>
+                <variable name="UsuarioMinuta" mapped-name="textAlert:UsuarioMinuta" access="read,write"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Minutar ato - Decisão" name="Retornar para minutar ato - Decisão"/>
+        <transition to="Testa expedição via sistema" name="Testa expedição via sistema">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Minutar ato - Urgente" name="Retornar para minutar ato - Urgente"/>
+        <transition to="Migrar para sentença" name="Retornar para minutar ato - Sentença"/>
+        <transition to="Migrar para despacho" name="Retornar para minutar ato - Despacho"/>
+        <transition to="Nó de Desvio - Preparar Ato Judicial" name="Nó de Desvio - Preparar Ato Judicial">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{false}')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','64,76')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Retornar para minutar ato - Sentença, Retornar para minutar ato - Decisão, Retornar para minutar ato - Despacho, Retornar para minutar ato - Urgente, Controlar Prazo para Recurso')}"/>
+        </event>
+        <event type="task-create">
+            <action name="upd" expression="#{taskInstanceUtil.setFrameDefaultTransition('Testa expedição via sistema')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:lancamentoMovimentoObrigatorio', 'true')}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Assinar ato - Urgente">
+        <task name="Assinar ato - Urgente" swimlane="Secretaria e gabinete" priority="4">
+            <controller>
+                <variable name="Processo_Fluxo_revisarMinuta" mapped-name="frame:Processo_Fluxo_revisarMinuta" access="read,write"/>
+                <variable name="AssinaturaEmLote" mapped-name="assinarLote:AssinaturaEmLote" access="read,write"/>
+                <variable name="UsuarioMinuta" mapped-name="textAlert:UsuarioMinuta" access="read"/>
+                <variable name="miniPac" mapped-name="miniPAC:miniPac" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Minutar ato - Decisão" name="Retornar para minutar ato - Decisão"/>
+        <transition to="Minutar ato - Urgente" name="Retornar para minutar ato - Urgente"/>
+        <transition to="Testa expedição via sistema" name="Testa expedição via sistema">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Migrar para sentença" name="Retornar para minutar ato - Sentença"/>
+        <transition to="Migrar para despacho" name="Retornar para minutar ato - Despacho"/>
+        <transition to="Nó de Desvio - Preparar Ato Judicial" name="Nó de Desvio - Preparar Ato Judicial">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{false}')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','62,155,161,162,163,164')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Retornar para minutar ato - Sentença, Retornar para minutar ato - Decisão, Retornar para minutar ato - Despacho, Retornar para minutar ato - Urgente, Controlar Prazo para Recurso')}"/>
+        </event>
+        <event type="task-create">
+            <action name="upd" expression="#{taskInstanceUtil.setFrameDefaultTransition('Testa expedição via sistema')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('prepararAto:meiosComunicacoes','E,C,M,T,S')}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:lancamentoMovimentoObrigatorio', 'true')}"/>
+        </event>
+    </task-node>
+    <decision expression="#{comunicacaoProcessualAction.getExpedientesEletronico().size() &gt; 0 ? 'Encaminhar via sistema' : 'Término'}" name="Testa expedição via sistema">
+        <transition to="Encaminhar via sistema" name="Encaminhar via sistema"/>
+        <transition to="Término" name="Término"/>
+    </decision>
+    <node name="Encaminhar via sistema">
+        <transition to="Término" name="Término"/>
+        <event type="node-leave">
+            <action name="upd" expression="#{comunicacaoProcessualAction.enviarExpedientesLancarMovimentos('E', 'processoExpedienteAtual','#{preencherMovimento.deCodigo(60).associarAoDocumento(processoExpedienteAtual.getProcessoDocumento()).comComplementoDeCodigo(4).doTipoDominio().preencherComElementoDeCodigo(200).lancarMovimento()}')}"/>
+        </event>
+    </node>
+    <node name="Excluir conclusão">
+        <transition to="Término" name="Término"/>
+        <event type="node-leave">
+            <action expression="#{preencherMovimento.deCodigo(123).comComplementoDeCodigo(20).doTipoDinamico().preencherComObjeto(tramitacaoProcessualService.recuperaProcesso().orgaoJulgador).comComplementoDeCodigo(18).doTipoDominio().preencherComElementoDeCodigo(183).comComplementoDeCodigo(7).doTipoLivre().preencherComTexto('Secretaria processante').lancarMovimento()}"/>
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('pje:atoNaoAssinado', true)}"/>
+        </event>
+        <event type="node-enter">
+            <action name="upd" expression="#{not empty processoHome.idProcessoDocumento ? processoDocumentoManager.removerDocumentoAPartirDeVariavalDeFluxo('minutaEmElaboracao') : ''}"/>
+        </event>
+    </node>
+    <end-state name="Término">
+        <event type="node-enter">
+            <action expression="#{org.jboss.seam.bpm.processInstance.contextInstance.deleteVariable('minutaEmElaboracao')}"/>
+            <action expression="#{lancadorMovimentosService.apagarMovimentosTemporarios()}"/>
+            <action expression="#{org.jboss.seam.bpm.processInstance.contextInstance.deleteVariable('AgrupamentosLancadosTemporariamente')}"/>
+            <action expression="#{tramitacaoProcessualService.apagaVariavelTarefa('textEditCombo:Minutar_ato')}"/>
+            <action name="upd" expression="#{(tramitacaoProcessualService.recuperaProcesso().tutelaLiminar and !tramitacaoProcessualService.recuperaProcesso().apreciadoTutelaLiminar) and (processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(339),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(348),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(792),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(892),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(332),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(347),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(785),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(889),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(193),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(83),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2))) ? tramitacaoProcessualService.recuperaProcesso().setApreciadoTutelaLiminar('true') : '' }"/>
+            <action name="upd" expression="#{(tramitacaoProcessualService.temSituacao('jus:julgado') ? '' : ((processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(193),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2))) ? tramitacaoProcessualService.acrescentarSituacao('jus:julgado') : '' ))}"/>
+            <action name="upd" expression="#{(tramitacaoProcessualService.recuperaProcesso().getJusticaGratuita() and !tramitacaoProcessualService.recuperaProcesso().getApreciadoJusticaGratuita()) and (processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(11024),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(334),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2))) ? processoTrfHome.setarApreciadoJusticaGratuita(tramitacaoProcessualService.recuperaProcesso()) : ''}"/>
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('usuarioMinuta')}"/>
+        </event>
+    </end-state>
+    <task-node end-tasks="true" name="Nó de Desvio - Preparar Ato Judicial">
+        <task name="Nó de Desvio - Preparar Ato Judicial" priority="3"/>
+        <transition to="Minutar ato - Sentença" name="Minutar ato - Sentença"/>
+        <transition to="Minutar ato - Despacho" name="Minutar ato - Despacho"/>
+        <transition to="Minutar ato - Decisão" name="Minutar ato - Decisão"/>
+        <transition to="Minutar ato - Urgente" name="Minutar ato - Urgente"/>
+        <transition to="Revisar minuta - Sentença" name="Revisar minuta - Sentença"/>
+        <transition to="Revisar minuta - Despacho" name="Revisar minuta - Despacho"/>
+        <transition to="Revisar minuta - Decisão" name="Revisar minuta - Decisão"/>
+        <transition to="Revisar minuta - Urgente" name="Revisar minuta - Urgente"/>
+        <transition to="Assinar ato - Sentença" name="Assinar ato - Sentença"/>
+        <transition to="Assinar ato - Despacho" name="Assinar ato - Despacho"/>
+        <transition to="Assinar ato - Decisão" name="Assinar ato - Decisão"/>
+        <transition to="Assinar ato - Urgente" name="Assinar ato - Urgente"/>
+        <transition to="Término" name="Término"/>
+    </task-node>  
+    <!-- PROCESS-EVENTS -->
+    <event type="superstate-enter">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="process-start">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="before-signal">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="subprocess-created">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-create">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="transition">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-assign">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="after-signal">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="timer">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-start">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="subprocess-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="node-leave">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="process-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="superstate-leave">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="node-enter">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>  
+    <!-- ACTIONS --> 
+</process-definition>

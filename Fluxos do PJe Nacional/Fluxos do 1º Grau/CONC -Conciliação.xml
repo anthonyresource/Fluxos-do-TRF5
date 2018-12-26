@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<process-definition xmlns="urn:jbpm.org:jpdl-3.2" name="Conciliação"> 
+    <!-- SWIMLANES -->
+    <swimlane name="Secretaria e gabinete">
+        <assignment pooled-actors="#{localizacaoAssignment.getPooledActors('9:1469,9:5197,10:1338')}" actor-id="#{actor.id}"/>
+    </swimlane>  
+    <!-- START-STATE -->
+    <start-state name="Início">
+        <task name="Tarefa inicial" priority="3"/>
+        <transition to="Separação em deslocamento para o setor de conciliação" name="Separação em deslocamento para o setor de conciliação"/>
+    </start-state>  
+    <!-- NODES -->
+    <fork name="Separação em deslocamento para o setor de conciliação">
+        <transition to="Testa processo de maracanaú" name="Teste processo de maracanaú"/>
+    </fork>
+    <decision expression="#{processoTrfHome.instance.orgaoJulgador.idOrgaoJulgador == 2 ? 'Desloca fluxo para conciliação do ceará' : 'Junção em deslocamento para o setor de conciliação'}" name="Testa processo de maracanaú">
+        <description><![CDATA[#{processoTrfHome.instance.orgaoJulgador.idOrgaoJulgador == 2 'Desloca fluxo para conciliação do ceará' : 'Junção em deslocamento para o setor de conciliação'}]]></description>
+        <transition to="Junção em deslocamento para o setor de conciliação" name="Junção em deslocamento para o setor de conciliação"/>
+        <transition to="Desloca fluxo para conciliação do ceará" name="Desloca fluxo para conciliação do ceará"/>
+    </decision>
+    <node name="Desloca fluxo para conciliação do ceará">
+        <transition to="Triagem da conciliação" name="Triagem da conciliação"/>
+        <event type="node-leave">
+            <action expression="#{processoJudicialService.deslocarOrgaoJulgador(processoJudicialService.findById(org.jboss.seam.bpm.processInstance.contextInstance.getVariable('processo')),7,0,5)}"/>
+            <action expression="#{preencherMovimento.deCodigo(123).comComplementoDeCodigo(20).doTipoDinamico().preencherComObjeto(tramitacaoProcessualService.recuperaProcesso().orgaoJulgador).comComplementoDeCodigo(18).doTipoDominio().preencherComElementoDeCodigo(182).comComplementoDeCodigo(7).doTipoLivre().preencherComTexto('central de conciliação').lancarMovimento()}"/>
+        </event>
+        <event type="node-enter">
+            <action expression="#{org.jboss.seam.bpm.processInstance.contextInstance.setVariable('pje:idOrgaoOrigem', processoJudicialService.findById(org.jboss.seam.bpm.processInstance.contextInstance.getVariable('processo')).orgaoJulgador.idOrgaoJulgador)}"/>
+            <action expression="#{org.jboss.seam.bpm.processInstance.contextInstance.setVariable('pje:idOrgaoColegiadoOrigem', processoJudicialService.findById(org.jboss.seam.bpm.processInstance.contextInstance.getVariable('processo')).orgaoJulgadorColegiado.idOrgaoJulgadorColegiado)}"/>
+            <action expression="#{org.jboss.seam.bpm.processInstance.contextInstance.setVariable('pje:idOrgaoJulgadorCargoOrigem', processoJudicialService.findById(org.jboss.seam.bpm.processInstance.contextInstance.getVariable('processo')).orgaoJulgadorCargo.idOrgaoJulgadorCargo)}"/>
+        </event>
+    </node>
+    <join name="Junção em deslocamento para o setor de conciliação">
+        <transition to="Triagem da conciliação" name="Triagem da conciliação"/>
+    </join>
+    <task-node end-tasks="true" name="Triagem da conciliação">
+        <task name="Triagem da conciliação" swimlane="Secretaria e gabinete" priority="3">
+            <controller>
+                <variable name="movimentarEmLote" mapped-name="movimentarLote:movimentarEmLote" access="read"/>
+            </controller>
+        </task>
+        <transition to="Nó de Desvio - Conciliação" name="Nó de Desvio - Conciliação">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <transition to="Conclusão para decisão" name="Conclusão para decisão"/>
+        <transition to="Conclusão para despacho" name="Conclusão para despacho"/>
+        <transition to="Designar audiência" name="Designar audiência"/>
+        <transition to="Retornar fluxo para juízo de origem" name="Retornar fluxo para juízo de origem"/>
+    </task-node>
+    <process-state name="Preparar ato de comunicação">
+        <sub-process name="Preparar Ato de Comunicação Simplificado" binding="late"/>
+        <transition to="Testa saída preparar ato de comunicação" name="Testa saída preparar ato de comunicação"/>
+    </process-state>
+    <node name="Conclusão para despacho">
+        <transition to="Preparar ato judicial" name="Preparar ato judicial"/>
+        <event type="node-enter">
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('pje:tipoMinuta', 'despacho')}"/>
+            <action expression="#{preencherMovimento.deCodigo(51).comComplementoDeCodigo(3).doTipoDominio().preencherComElementoDeCodigo(5).lancarMovimento()}"/>
+        </event>
+    </node>
+    <node name="Conclusão para decisão">
+        <transition to="Preparar ato judicial" name="Preparar ato judicial"/>
+        <event type="node-enter">
+            <action expression="#{tramitacaoProcessualService.gravaVariavel('pje:tipoMinuta', 'decisão')}"/>
+            <action expression="#{preencherMovimento.deCodigo(51).comComplementoDeCodigo(3).doTipoDominio().preencherComElementoDeCodigo(6).lancarMovimento()}"/>
+        </event>
+    </node>
+    <process-state name="Preparar ato judicial">
+        <sub-process name="Preparar Ato Judicial" binding="late"/>
+        <transition to="Testa saída preparar ato judicial" name="Testa saída preparar ato judicial"/>
+    </process-state>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('pje:atoNaoAssinado') ? 'Análise da secretaria' : 'Analisar determinações'}" name="Testa saída preparar ato judicial">
+        <transition to="Análise da secretaria" name="Análise da secretaria"/>
+        <transition to="Analisar determinações" name="Analisar determinações"/>
+        <event type="node-leave">
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('pje:atoNaoAssinado')}"/>
+        </event>
+    </decision>
+    <process-state name="Controlar prazos">
+        <sub-process name="Controle do Prazo" binding="late"/>
+        <transition to="Análise da secretaria" name="Análise da secretaria"/>
+    </process-state>
+    <task-node end-tasks="true" name="Análise da secretaria">
+        <task name="Análise da secretaria" swimlane="Secretaria e gabinete" priority="3">
+            <controller>
+                <variable name="movimentarEmLote" mapped-name="movimentarLote:movimentarEmLote" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <transition to="Nó de Desvio - Conciliação" name="Nó de Desvio - Conciliação">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Designar audiência" name="Designar audiência"/>
+        <transition to="Conclusão para despacho" name="Conclusão para despacho"/>
+        <transition to="Conclusão para decisão" name="Conclusão para decisão"/>
+        <transition to="Retornar fluxo para juízo de origem" name="Retornar fluxo para juízo de origem"/>
+        <transition to="Preparar ato ordinatório" name="Preparar ato ordinatório"/>
+    </task-node>
+    <task-node end-tasks="true" name="Analisar determinações">
+        <task name="Analisar determinações" swimlane="Secretaria e gabinete" priority="3">
+            <controller>
+                <variable name="Processo_Fluxo_visualizarDecisao" mapped-name="frame:Processo_Fluxo_visualizarDecisao" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Preparar ato de comunicação" name="Preparar ato de comunicação"/>
+        <transition to="Nó de Desvio - Conciliação" name="Nó de Desvio - Conciliação">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Designar audiência" name="Designar audiência"/>
+        <transition to="Retornar fluxo para juízo de origem" name="Retornar fluxo para juízo de origem"/>
+    </task-node>
+    <process-state name="Designar audiência">
+        <sub-process name="Audiência" binding="late"/>
+        <transition to="Análise da secretaria" name="Análise da secretaria"/>
+    </process-state>
+    <process-state name="Preparar ato ordinatório">
+        <sub-process name="Preparar ato ordinatório" binding="late"/>
+        <transition to="Análise da secretaria" name="Análise da secretaria"/>
+    </process-state>
+    <node name="Retornar fluxo para juízo de origem">
+        <transition to="Término" name="Término"/>
+        <event type="node-enter">
+            <action expression="#{processoJudicialService.deslocarOrgaoJulgador(processoTrfHome.instance, org.jboss.seam.bpm.processInstance.contextInstance.getVariable('pje:idOrgaoOrigem'), org.jboss.seam.bpm.processInstance.contextInstance.getVariable('pje:idOrgaoColegiadoOrigem'), org.jboss.seam.bpm.processInstance.contextInstance.getVariable('pje:idOrgaoJulgadorCargoOrigem'), true)}"/>
+            <action expression="#{org.jboss.seam.bpm.processInstance.contextInstance.deleteVariable('pje:idOrgaoOrigem')}"/>
+            <action expression="#{org.jboss.seam.bpm.processInstance.contextInstance.deleteVariable('pje:idOrgaoColegiadoOrigem')}"/>
+            <action expression="#{org.jboss.seam.bpm.processInstance.contextInstance.deleteVariable('pje:idOrgaoJulgadorCargoOrigem')}"/>
+            <action expression="#{preencherMovimento.deCodigo(123).comComplementoDeCodigo(20).doTipoDinamico().preencherComObjeto(tramitacaoProcessualService.recuperaProcesso().orgaoJulgador).comComplementoDeCodigo(18).doTipoDominio().preencherComElementoDeCodigo(37).comComplementoDeCodigo(7).doTipoLivre().preencherComTexto('Órgão Julgador de origem').lancarMovimento()}"/>
+        </event>
+    </node>
+    <end-state name="Término"/>
+    <task-node end-tasks="true" name="Nó de Desvio - Conciliação">
+        <task name="Nó de Desvio - Conciliação" priority="3"/>
+        <transition to="Término" name="Término"/>
+        <transition to="Triagem da conciliação" name="Triagem da conciliação"/>
+        <transition to="Analisar determinações" name="Analisar determinações"/>
+        <transition to="Análise da secretaria" name="Análise da secretaria"/>
+    </task-node>
+    <decision expression="#{tramitacaoProcessualService.recuperaVariavel('pacs:naoIntimar') ? 'Análise da secretaria' : 'Controlar prazos'}" name="Testa saída preparar ato de comunicação">
+        <transition to="Controlar prazos" name="Controlar prazos"/>
+        <transition to="Análise da secretaria" name="Análise da secretaria"/>
+        <event type="node-leave">
+            <action expression="#{tramitacaoProcessualService.apagaVariavel('pacs:naoIntimar')}"/>
+        </event>
+    </decision>  
+    <!-- PROCESS-EVENTS -->
+    <event type="superstate-enter">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="process-start">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="before-signal">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-create">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="subprocess-created">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-assign">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="transition">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="after-signal">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="timer">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-start">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="subprocess-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="process-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="node-leave">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="superstate-leave">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="node-enter">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event> 
+</process-definition>

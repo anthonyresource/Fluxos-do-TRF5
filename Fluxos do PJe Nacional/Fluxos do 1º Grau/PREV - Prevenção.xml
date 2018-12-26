@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<process-definition xmlns="urn:jbpm.org:jpdl-3.2" name="Prevenção">
+    <description><![CDATA[Fluxo de análise de prevenção.]]></description>  
+    <!-- SWIMLANES -->
+    <swimlane name="Secretaria e Gabinete">
+        <assignment pooled-actors="#{localizacaoAssignment.getPooledActors('10:1338,9:1469')}"/>
+    </swimlane>  
+    <!-- START-STATE -->
+    <start-state name="Início">
+        <task name="Tarefa inicial" priority="3"/>
+        <transition to="Prevenção - Analisar e minutar ato" name="Prevenção - Analisar e minutar ato"/>
+    </start-state>  
+    <!-- NODES -->
+    <task-node end-tasks="true" name="Prevenção - Analisar e minutar ato">
+        <task name="Prevenção - Analisar e minutar ato" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="ModeloDocumento_listView" mapped-name="page:ModeloDocumento_listView" access="read,write"/>
+                <variable name="Aviso_Prevencao" mapped-name="textAlert:Aviso_Prevencao" access="read,write"/>
+                <variable name="Processo_Fluxo_prevencao_analiseProcessosPreventos" mapped-name="frame:Processo_Fluxo_prevencao_analiseProcessosPreventos" access="read,write"/>
+                <variable name="Minutar_ato" mapped-name="textEditCombo:Minutar_ato" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Prevenção - Assinar ato" name="Encaminhar para assinatura"/>
+        <transition to="Término" name="Término"/>
+        <transition to="Nó de Desvio - Prevenção" name="Nó de Desvio - Prevenção">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','64,76,119,155,161,162')}"/>
+            <action name="upd" expression="#{tipoDocumento.set('Minutar_ato',64,76,119,155,161,162)}"/>
+            <action name="Condicao do lancamento temporario de movimentos" expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{true}')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Término, Processar análise de prevenção, Apagar variável Minutar_ato')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:lancamentoMovimentoObrigatorio', 'true')}"/>
+        </event>
+        <event type="node-leave">
+            <action expression="#{not empty processoHome.idProcessoDocumento ? org.jboss.seam.bpm.processInstance.contextInstance.setVariable('minutaEmElaboracao', processoHome.idProcessoDocumento) : ''}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavel('usuarioMinuta', authenticator.getUsuarioLogado())}"/>
+        </event>
+    </task-node>
+    <task-node end-tasks="true" name="Prevenção - Assinar ato">
+        <task name="Prevenção - Assinar ato" swimlane="Secretaria e Gabinete" priority="3">
+            <controller>
+                <variable name="Aviso_Prevencao" mapped-name="textAlert:Aviso_Prevencao" access="read,write"/>
+                <variable name="Processo_Fluxo_prevencao_analiseProcessosPreventos" mapped-name="frame:Processo_Fluxo_prevencao_analiseProcessosPreventos" access="read,write"/>
+                <variable name="Processo_Fluxo_revisarMinuta" mapped-name="frame:Processo_Fluxo_revisarMinuta" access="read,write"/>
+                <variable name="UsuarioMinuta" mapped-name="textAlert:UsuarioMinuta" access="read,write"/>
+                <variable name="AssinarLote" mapped-name="assinarLote:AssinarLote" access="read,write"/>
+            </controller>
+        </task>
+        <transition to="Processar análise de prevenção" name="Processar análise de prevenção">
+            <condition expression="#{true}"/>
+        </transition>
+        <transition to="Prevenção - Analisar e minutar ato" name="Retornar para minutar ato"/>
+        <transition to="Nó de Desvio - Prevenção" name="Nó de Desvio - Prevenção">
+            <condition expression="#{true}"/>
+        </transition>
+        <event type="task-start">
+            <action expression="#{lancadorMovimentosService.setCondicaoLancamentoMovimentosTemporarioNoFluxo('#{false}')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('tiposDisponiveisIds','64,76,119,155,161,162')}"/>
+            <action name="upd" expression="#{tramitacaoProcessualService.gravaVariavelTarefa('pje:fluxo:transicao:dispensaRequeridos', 'Retornar para minutar ato')}"/>
+        </event>
+        <event type="task-create">
+            <action name="upd" expression="#{taskInstanceUtil.setFrameDefaultTransition('Processar análise de prevenção')}"/>
+        </event>
+    </task-node>
+    <node name="Processar análise de prevenção">
+        <transition to="Término" name="Término"/>
+        <event type="node-enter">
+            <action name="upd" expression="#{!empty analiseProcessosPreventosAction.processoTrfConexaoMap ? analiseProcessosPreventosAction.processoTrfConexaoMap.{entry|processoTrfConexaoManager.defineTipoPrevencao(entry.getKey(), (entry.getValue() eq 'PE' ? 'RE' : entry.getValue()), revisarMinutaAction.processoDocumento)} : ''}"/>
+        </event>
+    </node>
+    <end-state name="Término">
+        <event type="node-enter">
+            <action expression="#{(tramitacaoProcessualService.recuperaProcesso().tutelaLiminar and !tramitacaoProcessualService.recuperaProcesso().apreciadoTutelaLiminar) and (processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(339),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(348),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(792),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(892),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(332),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(347),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(785),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(889),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(193),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(83),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2))) ? tramitacaoProcessualService.recuperaProcesso().setApreciadoTutelaLiminar('true') : '' }"/>
+            <action expression="#{(tramitacaoProcessualService.temSituacao('jus:julgado') ? '' : ((processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(193),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2))) ? tramitacaoProcessualService.acrescentarSituacao('jus:julgado') : '' ))}"/>
+            <action name="upd" expression="#{(tramitacaoProcessualService.recuperaProcesso().getJusticaGratuita() and !tramitacaoProcessualService.recuperaProcesso().getApreciadoJusticaGratuita()) and (processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(11024),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2)) or processoEventoManager.temMovimento(tramitacaoProcessualService.recuperaProcesso(),eventoManager.findByCodigoCNJ(334),dateUtil.adicionarTempoData(dateUtil.getDataAtual(),Calendar.MINUTE,-2))) ? processoTrfHome.setarApreciadoJusticaGratuita(tramitacaoProcessualService.recuperaProcesso()) : ''}"/>
+        </event>
+    </end-state>
+    <task-node end-tasks="true" name="Nó de Desvio - Prevenção">
+        <task name="Nó de Desvio - Prevenção" priority="3"/>
+        <transition to="Prevenção - Analisar e minutar ato" name="Prevenção - Analisar e minutar ato"/>
+        <transition to="Prevenção - Assinar ato" name="Prevenção - Assinar ato"/>
+        <transition to="Término" name="Término"/>
+    </task-node>  
+    <!-- PROCESS-EVENTS -->
+    <event type="superstate-enter">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="process-start">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="before-signal">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="subprocess-created">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-create">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="transition">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-assign">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="after-signal">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="timer">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="task-start">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="subprocess-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="node-leave">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="process-end">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="superstate-leave">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>
+    <event type="node-enter">
+        <script>br.com.infox.ibpm.util.JbpmEvents.raiseEvent(executionContext)</script>
+    </event>  
+    <!-- ACTIONS --> 
+</process-definition>
